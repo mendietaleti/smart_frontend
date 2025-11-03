@@ -33,7 +33,7 @@ export function useAuth() {
     setMessage('Sesión cerrada correctamente')
   }, [])
 
-  return { user, loading, message, setMessage, login, logout }
+  return { user, loading, message, setMessage, login, logout, setUser }
 }
 
 

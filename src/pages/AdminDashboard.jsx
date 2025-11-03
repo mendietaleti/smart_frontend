@@ -10,7 +10,7 @@ import {
   HelpCircle, LogOut, Lock, Key, Globe, Smartphone, Monitor, 
   Headphones, Camera, Gamepad2, Wrench
 } from 'lucide-react';
-import { listProducts } from '../api/products.js';
+import { listProducts, createProduct, updateProduct, deleteProduct } from '../api/products.js';
 import './AdminDashboard.css';
 
 export default function AdminDashboard({ user, onLogout }) {
@@ -23,6 +23,15 @@ export default function AdminDashboard({ user, onLogout }) {
   const [clientes, setClientes] = useState([]);
   const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [productViewOpen, setProductViewOpen] = useState(false);
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [productForm, setProductForm] = useState({
+    nombre: '', descripcion: '', precio: '', imagen: '', categoria: '', marca: '', proveedor: '', stock: ''
+  });
+  const [uiMessage, setUiMessage] = useState('');
+  const [uiError, setUiError] = useState('');
+  const [viewItem, setViewItem] = useState(null);
 
   // Usuario administrador
   const admin = {
@@ -128,6 +137,56 @@ export default function AdminDashboard({ user, onLogout }) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ---- Productos CRUD Handlers ----
+  function openNewProduct() {
+    setEditingProductId(null);
+    setProductForm({ nombre:'', descripcion:'', precio:'', imagen:'', categoria:'', marca:'', proveedor:'', stock:'' });
+    setUiMessage(''); setUiError('');
+    setProductModalOpen(true);
+  }
+
+  function openEditProduct(p) {
+    setEditingProductId(p.id);
+    setProductForm({
+      nombre: p.nombre || '', descripcion: p.descripcion || '', precio: String(p.precio || ''), imagen: p.imagen || '',
+      categoria: p.categoria || '', marca: p.marca || '', proveedor: p.proveedor || '', stock: String(p.stock || '')
+    });
+    setUiMessage(''); setUiError('');
+    setProductModalOpen(true);
+  }
+
+  async function submitProductForm(e) {
+    e.preventDefault();
+    setUiMessage(''); setUiError('');
+    if (!productForm.nombre.trim() || !productForm.precio) { setUiError('Nombre y precio son obligatorios'); return; }
+    try {
+      const body = { ...productForm, precio: Number(productForm.precio), stock: Number(productForm.stock) || 0 };
+      if (editingProductId) {
+        await updateProduct({ id: editingProductId, ...body });
+        setUiMessage('Producto actualizado correctamente');
+      } else {
+        await createProduct(body);
+        setUiMessage('Producto creado correctamente');
+      }
+      setProductModalOpen(false);
+      await loadData();
+    } catch (err) {
+      setUiError(err.message || 'Error');
+    }
+  }
+
+  async function onDeleteProduct(id) {
+    if (!window.confirm('¿Eliminar este producto?')) return;
+    setUiError(''); setUiMessage('');
+    try {
+      await deleteProduct(id);
+      setUiMessage('Producto eliminado');
+      await loadData();
+    } catch (err) {
+      setUiError(err.message || 'Error al eliminar');
     }
   }
 
@@ -319,12 +378,8 @@ export default function AdminDashboard({ user, onLogout }) {
             <p className="admin-content-subtitle">Administra el catálogo de productos</p>
           </div>
           <div className="admin-content-actions">
-            <button className="admin-content-button admin-content-button-secondary">
-              <Upload className="admin-content-button-icon" />
-              <span>Importar</span>
-            </button>
             <button 
-              onClick={() => setActiveSection('productos')}
+              onClick={openNewProduct}
               className="admin-content-button admin-content-button-primary"
             >
               <Plus className="admin-content-button-icon" />
@@ -379,13 +434,13 @@ export default function AdminDashboard({ user, onLogout }) {
                     </td>
                     <td className="admin-table-cell">
                       <div className="admin-action-buttons">
-                        <button className="admin-action-button-small admin-action-view" title="Ver detalles">
+                        <button className="admin-action-button-small admin-action-view" title="Ver detalles" onClick={()=>{ setViewItem(producto); setProductViewOpen(true); }}>
                           <Eye className="admin-action-icon-small" />
                         </button>
-                        <button className="admin-action-button-small admin-action-edit" title="Editar">
+                        <button className="admin-action-button-small admin-action-edit" title="Editar" onClick={()=>openEditProduct(producto)}>
                           <Edit className="admin-action-icon-small" />
                         </button>
-                        <button className="admin-action-button-small admin-action-delete" title="Eliminar">
+                        <button className="admin-action-button-small admin-action-delete" title="Eliminar" onClick={()=>onDeleteProduct(producto.id)}>
                           <Trash2 className="admin-action-icon-small" />
                         </button>
                       </div>
@@ -397,6 +452,85 @@ export default function AdminDashboard({ user, onLogout }) {
           </div>
         )}
       </div>
+
+      {/* Mensajes de operación */}
+      {(uiMessage || uiError) && (
+        <div style={{ marginTop: 12 }}>
+          {uiMessage && <div className="success">{uiMessage}</div>}
+          {uiError && <div className="error">{uiError}</div>}
+        </div>
+      )}
+
+      {/* Modal Crear / Editar Producto */}
+      {productModalOpen && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={()=>setProductModalOpen(false)}>
+          <div className="card" style={{ width:'95%', maxWidth:720, position:'relative' }} onClick={(e)=>e.stopPropagation()}>
+            <button onClick={()=>setProductModalOpen(false)} title="Cerrar" style={{ position:'absolute', top:8, right:8, border:'1px solid #e5e7eb', background:'#fff', width:32, height:32, borderRadius:999, cursor:'pointer' }}>×</button>
+            <h3 style={{ marginTop:0 }}>{editingProductId ? '✏️ Editar Producto' : '➕ Nuevo Producto'}</h3>
+            <form onSubmit={submitProductForm}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <label>Nombre*
+                  <input value={productForm.nombre} onChange={e=>setProductForm({ ...productForm, nombre:e.target.value })} required />
+                </label>
+                <label>Precio*
+                  <input type="number" min="0" step="0.01" value={productForm.precio} onChange={e=>setProductForm({ ...productForm, precio:e.target.value })} required />
+                </label>
+                <label>Stock
+                  <input type="number" min="0" value={productForm.stock} onChange={e=>setProductForm({ ...productForm, stock:e.target.value })} />
+                </label>
+                <label>Categoría
+                  <input value={productForm.categoria} onChange={e=>setProductForm({ ...productForm, categoria:e.target.value })} />
+                </label>
+                <label>Marca
+                  <input value={productForm.marca} onChange={e=>setProductForm({ ...productForm, marca:e.target.value })} />
+                </label>
+                <label>Proveedor
+                  <input value={productForm.proveedor} onChange={e=>setProductForm({ ...productForm, proveedor:e.target.value })} />
+                </label>
+              </div>
+              <label>Descripción
+                <textarea rows={3} value={productForm.descripcion} onChange={e=>setProductForm({ ...productForm, descripcion:e.target.value })} />
+              </label>
+              <label>URL de imagen
+                <input type="url" value={productForm.imagen} onChange={e=>setProductForm({ ...productForm, imagen:e.target.value })} />
+              </label>
+              <div style={{ display:'flex', gap:8, marginTop:12 }}>
+                <button type="submit" className="btn-primary">{editingProductId ? '💾 Guardar' : '➕ Crear'}</button>
+                <button type="button" className="btn-secondary" onClick={()=>setProductModalOpen(false)}>Cancelar</button>
+              </div>
+              {uiError && <div className="error" style={{ marginTop:8 }}>{uiError}</div>}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ver Detalle */}
+      {productViewOpen && viewItem && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={()=>setProductViewOpen(false)}>
+          <div className="card" style={{ width:'95%', maxWidth:640, position:'relative' }} onClick={(e)=>e.stopPropagation()}>
+            <button onClick={()=>setProductViewOpen(false)} title="Cerrar" style={{ position:'absolute', top:8, right:8, border:'1px solid #e5e7eb', background:'#fff', width:32, height:32, borderRadius:999, cursor:'pointer' }}>×</button>
+            <h3 style={{ marginTop:0 }}>👁️ Detalle de Producto</h3>
+            <div style={{ display:'grid', gridTemplateColumns:'140px 1fr', gap:16 }}>
+              <div>
+                {viewItem.imagen ? (
+                  <img src={viewItem.imagen} alt={viewItem.nombre} style={{ width:'100%', height:140, objectFit:'cover', borderRadius:8 }} />
+                ) : (
+                  <div style={{ width:'100%', height:140, background:'#f3f4f6', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', color:'#9ca3af' }}>Sin imagen</div>
+                )}
+              </div>
+              <div>
+                <p style={{ margin:'4px 0' }}><strong>Nombre:</strong> {viewItem.nombre}</p>
+                <p style={{ margin:'4px 0' }}><strong>Precio:</strong> Bs. {viewItem.precio}</p>
+                <p style={{ margin:'4px 0' }}><strong>Stock:</strong> {viewItem.stock}</p>
+                <p style={{ margin:'4px 0' }}><strong>Categoría:</strong> {viewItem.categoria || '-'}</p>
+                <p style={{ margin:'4px 0' }}><strong>Marca:</strong> {viewItem.marca || '-'}</p>
+                <p style={{ margin:'4px 0' }}><strong>Proveedor:</strong> {viewItem.proveedor || '-'}</p>
+                {viewItem.descripcion && <p style={{ margin:'8px 0 0 0' }}><strong>Descripción:</strong> {viewItem.descripcion}</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 

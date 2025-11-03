@@ -87,6 +87,11 @@ export default function Register({ onSuccess, onCancel }) {
 
   return (
     <div className="register-form">
+      <div className="form-close">
+        <button type="button" aria-label="Cerrar" title="Cerrar" onClick={handleCancel}>
+          ×
+        </button>
+      </div>
       <div className="form-header">
         <h2>📝 Crear Cuenta de Cliente</h2>
         <p>Regístrate para realizar compras y gestionar tu perfil</p>

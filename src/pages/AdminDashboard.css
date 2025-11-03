@@ -22,6 +22,9 @@
   --admin-radius: 8px;
   --admin-radius-lg: 12px;
   --admin-transition: all 0.2s ease;
+  --admin-gap-sm: 8px;
+  --admin-gap: 16px;
+  --admin-gap-lg: 24px;
 }
 
 /* ===========================================
@@ -870,6 +873,9 @@
 .admin-table-row {
   border-bottom: none;
   transition: var(--admin-transition);
+  background: #ffffff;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
 }
 
 .admin-table-row:hover {
@@ -877,7 +883,7 @@
 }
 
 .admin-table-cell {
-  padding: 12px 0;
+  padding: 14px 16px;
   color: var(--admin-text-secondary);
 }
 
@@ -1051,7 +1057,7 @@
   box-shadow: var(--admin-shadow);
   border: none;
   overflow: hidden;
-  margin: 0;
+  margin: 0 0 24px 0; /* más separación entre secciones */
 }
 
 .admin-content-header {
@@ -1132,6 +1138,8 @@
 
 .admin-table-full {
   min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
 }
 
 /* ===========================================

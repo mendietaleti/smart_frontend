@@ -4,7 +4,7 @@ import { useAuth } from './hooks/useAuth.js'
 import { AppRouter } from './routers/AppRouter.jsx'
 
 function App() {
-  const { user, loading, message, login, logout } = useAuth()
+  const { user, loading, message, login, logout, setUser } = useAuth()
   const [showRegister, setShowRegister] = useState(false)
   
   if (loading) return <div className="card">Cargando...</div>
@@ -17,6 +17,7 @@ function App() {
       message={message}
       showRegister={showRegister}
       setShowRegister={setShowRegister}
+      setUser={setUser}
     />
   )
 }

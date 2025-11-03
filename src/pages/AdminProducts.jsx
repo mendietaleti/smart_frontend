@@ -18,6 +18,7 @@ export default function AdminProducts() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [viewItem, setViewItem] = useState(null)
 
   async function reload() {
     try {
@@ -130,10 +131,20 @@ export default function AdminProducts() {
   }
 
   return (
-    <div className="shop" style={{ marginTop: 24 }}>
-      <div className="card" style={{ background: '#f0f9ff', border: '2px solid #0ea5e9' }}>
-        <h2>🔧 Gestión de Productos - Panel Administrativo</h2>
-        <p>Desde aquí puedes crear, editar y eliminar productos del catálogo.</p>
+    <div className="shop" style={{ marginTop: 24, paddingBottom: 32 }}>
+      <div className="card" style={{ background: '#f0f9ff', border: '2px solid #0ea5e9', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+        <div>
+          <h2 style={{ margin:'0 0 4px 0' }}>🔧 Gestión de Productos</h2>
+          <p style={{ margin:0 }}>Administra el catálogo: crear, editar y eliminar productos.</p>
+        </div>
+        <div style={{ display:'flex', gap:8 }}>
+          <button 
+            className="btn-primary" 
+            onClick={() => { onCancel(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+          >
+            ➕ Nuevo Producto
+          </button>
+        </div>
       </div>
 
       <form onSubmit={onSubmit} className="card" style={{ textAlign:'left' }}>
@@ -279,7 +290,7 @@ export default function AdminProducts() {
                     </td>
                     <td style={{ padding:8, border:'1px solid #dee2e6' }}>{p.categoria || '-'}</td>
                     <td style={{ padding:8, border:'1px solid #dee2e6' }}>{p.marca || '-'}</td>
-                    <td style={{ padding:8, border:'1px solid #dee2e6' }}>${p.precio}</td>
+                    <td style={{ padding:8, border:'1px solid #dee2e6' }}>Bs. {p.precio}</td>
                     <td style={{ padding:8, border:'1px solid #dee2e6' }}>{p.stock}</td>
                     <td style={{ padding:8, border:'1px solid #dee2e6' }}>
                       <span style={{ 
@@ -290,20 +301,31 @@ export default function AdminProducts() {
                       </span>
                     </td>
                     <td style={{ padding:8, border:'1px solid #dee2e6' }}>
-                      <div style={{ display:'flex', gap:4 }}>
+                      <div style={{ display:'flex', gap:8 }}>
+                        <button 
+                          onClick={()=>setViewItem(p)} 
+                          className="btn-secondary"
+                          disabled={loading}
+                          title="Ver"
+                        >
+                          👁️ Ver
+                        </button>
                         <button 
                           onClick={()=>onEdit(p)} 
-                          className="btn-sm btn-secondary"
+                          className="btn-primary"
                           disabled={loading}
+                          title="Editar"
                         >
-                          ✏️
+                          ✏️ Editar
                         </button>
                         <button 
                           onClick={()=>onDelete(p.id)} 
-                          className="btn-sm btn-danger"
+                          className="btn-secondary"
                           disabled={loading}
+                          title="Eliminar"
+                          style={{ borderColor:'#ef4444', color:'#ef4444' }}
                         >
-                          🗑️
+                          🗑️ Eliminar
                         </button>
                       </div>
                     </td>
@@ -314,6 +336,33 @@ export default function AdminProducts() {
           </div>
         )}
       </div>
+
+      {viewItem && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50 }} onClick={()=>setViewItem(null)}>
+          <div className="card" style={{ maxWidth:600, width:'90%', position:'relative' }} onClick={(e)=>e.stopPropagation()}>
+            <button onClick={()=>setViewItem(null)} title="Cerrar" style={{ position:'absolute', top:8, right:8, border:'1px solid #e5e7eb', background:'#fff', width:32, height:32, borderRadius:999, cursor:'pointer' }}>×</button>
+            <h3 style={{ marginTop:0 }}>👁️ Detalle de Producto</h3>
+            <div style={{ display:'grid', gridTemplateColumns:'120px 1fr', gap:16 }}>
+              <div>
+                {viewItem.imagen ? (
+                  <img src={viewItem.imagen} alt={viewItem.nombre} style={{ width:'100%', height:120, objectFit:'cover', borderRadius:8 }} />
+                ) : (
+                  <div style={{ width:'100%', height:120, background:'#f3f4f6', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', color:'#9ca3af' }}>Sin imagen</div>
+                )}
+              </div>
+              <div>
+                <p style={{ margin:'4px 0' }}><strong>Nombre:</strong> {viewItem.nombre}</p>
+                <p style={{ margin:'4px 0' }}><strong>Precio:</strong> Bs. {viewItem.precio}</p>
+                <p style={{ margin:'4px 0' }}><strong>Stock:</strong> {viewItem.stock}</p>
+                <p style={{ margin:'4px 0' }}><strong>Categoría:</strong> {viewItem.categoria || '-'}</p>
+                <p style={{ margin:'4px 0' }}><strong>Marca:</strong> {viewItem.marca || '-'}</p>
+                <p style={{ margin:'4px 0' }}><strong>Proveedor:</strong> {viewItem.proveedor || '-'}</p>
+                {viewItem.descripcion && <p style={{ margin:'8px 0 0 0' }}><strong>Descripción:</strong> {viewItem.descripcion}</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -8,7 +8,7 @@ import '../pages/TiendaDashboard.css'
 import '../pages/ClienteDashboard.css'
 
 // Componente interno que usa useNavigate
-function AppRouterContent({ user, onLogin, onLogout, message, showRegister, setShowRegister }) {
+function AppRouterContent({ user, onLogin, onLogout, message, showRegister, setShowRegister, setUser }) {
   const navigate = useNavigate()
   const [currentView, setCurrentView] = useState('tienda')
 
@@ -209,9 +209,10 @@ function AppRouterContent({ user, onLogin, onLogout, message, showRegister, setS
         element={
           <RegisterPage 
             onCancel={() => navigate('/')} 
-            onSuccess={(user) => {
-              navigate('/')
-              onLogin(user.email, user.contrasena)
+            onSuccess={(newUser) => {
+              // Auto-login realizado por backend. Reflejamos el estado en el frontend y vamos a Mi Cuenta.
+              if (setUser) setUser(newUser)
+              navigate('/cliente')
             }}
           />
         } 
@@ -251,7 +252,7 @@ function AppRouterContent({ user, onLogin, onLogout, message, showRegister, setS
 }
 
 // Componente principal que envuelve con BrowserRouter
-export function AppRouter({ user, onLogin, onLogout, message, showRegister, setShowRegister }) {
+export function AppRouter({ user, onLogin, onLogout, message, showRegister, setShowRegister, setUser }) {
   return (
     <BrowserRouter>
       <AppRouterContent 
@@ -261,6 +262,7 @@ export function AppRouter({ user, onLogin, onLogout, message, showRegister, setS
         message={message}
         showRegister={showRegister}
         setShowRegister={setShowRegister}
+        setUser={setUser}
       />
     </BrowserRouter>
   )

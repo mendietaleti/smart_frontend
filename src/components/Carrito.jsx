@@ -282,9 +282,21 @@ export default function Carrito({ isOpen, onClose }) {
       {/* Modal de Checkout */}
       <Checkout 
         isOpen={showCheckout}
-        onClose={() => setShowCheckout(false)}
+        onClose={() => {
+          setShowCheckout(false)
+          // Recargar carrito cuando se cierra el checkout (por si se completó una compra)
+          if (isOpen) {
+            loadCarrito()
+          }
+        }}
         carrito={carrito}
-        onCompraExitosa={() => {
+        onCompraExitosa={(ventaData) => {
+          // Recargar el carrito después de una compra exitosa
+          // El checkout se encargará de mostrar la confirmación y cerrarse cuando el usuario lo desee
+          loadCarrito()
+        }}
+        onCloseCarrito={() => {
+          // Cerrar también el carrito cuando se cierra la confirmación de compra
           setShowCheckout(false)
           onClose()
         }}

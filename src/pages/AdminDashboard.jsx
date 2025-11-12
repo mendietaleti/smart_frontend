@@ -16,17 +16,18 @@ import { obtenerEstadisticasDashboard } from '../api/dashboard.js';
 import ImageUpload from '../components/ImageUpload.jsx';
 import HistorialVentas from '../components/HistorialVentas.jsx';
 import ReportesDinamicos from '../components/ReportesDinamicos.jsx';
+import DashboardVentas from '../components/DashboardVentas.jsx';
+import GestionModeloIA from '../components/GestionModeloIA.jsx';
 import './AdminDashboard.css';
 
 export default function AdminDashboard({ user, onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState(5);
+  const [notifications] = useState(5);
   const [isListening, setIsListening] = useState(false);
   const [productos, setProductos] = useState([]);
   const [clientes, setClientes] = useState([]);
-  const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
@@ -145,11 +146,8 @@ export default function AdminDashboard({ user, onLogout }) {
     { id: 'dashboard', label: 'Dashboard', icon: Home, description: 'Vista general del negocio' },
     { id: 'productos', label: 'Gestión de Productos', icon: Package, description: 'CRUD completo de productos' },
     { id: 'categorias', label: 'Categorías', icon: Filter, description: 'Gestionar categorías de productos' },
-    { id: 'inventario', label: 'Inventario', icon: Database, description: 'Control de stock y almacén' },
     { id: 'clientes', label: 'Gestión de Clientes', icon: Users, description: 'Administrar usuarios y clientes' },
     { id: 'ventas', label: 'Ventas', icon: ShoppingCart, description: 'Historial y gestión de ventas' },
-    { id: 'pedidos', label: 'Pedidos', icon: ShoppingBag, description: 'Seguimiento de pedidos' },
-    { id: 'pagos', label: 'Pagos', icon: CreditCard, description: 'Gestión de pagos y facturación' },
     { id: 'reportes', label: 'Reportes', icon: FileText, description: 'Generar reportes dinámicos' },
     { id: 'analytics', label: 'Analytics', icon: BarChart, description: 'Análisis de datos y métricas' },
     { id: 'predicciones', label: 'Predicciones IA', icon: Brain, description: 'Análisis predictivo con IA' },
@@ -207,9 +205,9 @@ export default function AdminDashboard({ user, onLogout }) {
       } catch (error) {
         console.error('Error cargando clientes:', error);
         setClientes([]);
+        // No mostrar error aquí porque se carga en el inicio y puede que el servidor no esté listo
       }
       
-      setVentas(recentSales);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -1578,74 +1576,6 @@ export default function AdminDashboard({ user, onLogout }) {
     </main>
   );
 
-  const renderVentas = () => (
-    <main className="admin-main">
-      <div className="admin-content-card">
-        <div className="admin-content-header">
-          <div className="admin-content-title-section">
-            <h3 className="admin-content-title">Gestión de Ventas</h3>
-            <p className="admin-content-subtitle">Historial y seguimiento de ventas</p>
-          </div>
-          <div className="admin-content-actions">
-            <button className="admin-content-button admin-content-button-secondary">
-              <Calendar className="admin-content-button-icon" />
-              <span>Filtrar por fecha</span>
-            </button>
-            <button className="admin-content-button admin-content-button-primary">
-              <Download className="admin-content-button-icon" />
-              <span>Exportar</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="admin-table-container">
-          <table className="admin-table admin-table-full">
-            <thead>
-              <tr className="admin-table-header-row">
-                <th className="admin-table-header-cell">ID Venta</th>
-                <th className="admin-table-header-cell">Cliente</th>
-                <th className="admin-table-header-cell">Productos</th>
-                <th className="admin-table-header-cell">Monto Total</th>
-                <th className="admin-table-header-cell">Fecha</th>
-                <th className="admin-table-header-cell">Estado</th>
-                <th className="admin-table-header-cell">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="admin-table-body">
-              {ventas.map((venta) => (
-                <tr key={venta.id} className="admin-table-row">
-                  <td className="admin-table-cell">{venta.id}</td>
-                  <td className="admin-table-cell admin-table-cell-bold">{venta.client}</td>
-                  <td className="admin-table-cell">3 productos</td>
-                  <td className="admin-table-cell admin-table-cell-bold">Bs. {venta.amount.toFixed(2)}</td>
-                  <td className="admin-table-cell">{venta.date}</td>
-                  <td className="admin-table-cell">
-                    <span className={`admin-table-status admin-table-status-${venta.status.toLowerCase().replace(' ', '-')}`}>
-                      {venta.status}
-                    </span>
-                  </td>
-                  <td className="admin-table-cell">
-                    <div className="admin-action-buttons">
-                      <button className="admin-action-button-small admin-action-view" title="Ver detalles">
-                        <Eye className="admin-action-icon-small" />
-                      </button>
-                      <button className="admin-action-button-small admin-action-edit" title="Procesar">
-                        <CheckCircle className="admin-action-icon-small" />
-                      </button>
-                      <button className="admin-action-button-small admin-action-delete" title="Cancelar">
-                        <XCircle className="admin-action-icon-small" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </main>
-  );
-
   const renderCategorias = () => (
     <main className="admin-main">
       <div className="admin-content-card">
@@ -1830,6 +1760,18 @@ export default function AdminDashboard({ user, onLogout }) {
         return (
           <main className="admin-main" style={{ padding: '0' }}>
             <ReportesDinamicos user={user} />
+          </main>
+        );
+      case 'analytics':
+        return (
+          <main className="admin-main" style={{ padding: '0' }}>
+            <DashboardVentas />
+          </main>
+        );
+      case 'predicciones':
+        return (
+          <main className="admin-main" style={{ padding: '0' }}>
+            <GestionModeloIA />
           </main>
         );
       case 'categorias':

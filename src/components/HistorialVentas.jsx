@@ -54,6 +54,10 @@ export default function HistorialVentas() {
       })
     } catch (err) {
       console.error('Error al cargar opciones de filtros:', err)
+      // Si es error de conexión, mostrar mensaje más claro
+      if (err.message && err.message.includes('Failed to fetch')) {
+        setError('No se pudo conectar con el servidor. Por favor, verifica que el servidor backend esté corriendo.')
+      }
     }
   }
 
@@ -66,7 +70,12 @@ export default function HistorialVentas() {
       setPaginacion(data.paginacion)
       setEstadisticas(data.estadisticas)
     } catch (err) {
-      setError(err.message || 'Error al cargar historial')
+      // Si es error de conexión, mostrar mensaje más claro
+      if (err.message && err.message.includes('Failed to fetch')) {
+        setError('No se pudo conectar con el servidor. Por favor, verifica que el servidor backend esté corriendo en el puerto 8000.')
+      } else {
+        setError(err.message || 'Error al cargar historial')
+      }
     } finally {
       setLoading(false)
     }

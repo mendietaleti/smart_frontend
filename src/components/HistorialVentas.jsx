@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { obtenerHistorialVentas, obtenerOpcionesFiltros } from '../api/historial.js'
 import { descargarComprobantePDF } from '../api/comprobantes.js'
+import API_BASE_URL from '../config/api.js'
 import './HistorialVentas.css'
 
 // Función para descargar comprobante en Excel
 async function descargarComprobanteExcel(ventaId) {
   try {
-    const res = await fetch(`/api/ventas/comprobantes/${ventaId}/excel/`, {
+    const res = await fetch(`${API_BASE_URL}/ventas/comprobantes/${ventaId}/excel/`, {
       method: 'GET',
       credentials: 'include'
     })

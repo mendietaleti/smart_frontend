@@ -1,6 +1,8 @@
 // Auth API (fetch + cookies de sesión)
 
-const BASE = '/api'
+import API_BASE_URL from '../config/api.js'
+
+const BASE = API_BASE_URL
 
 export async function login(email, contrasena) {
   const res = await fetch(`${BASE}/login/`, {

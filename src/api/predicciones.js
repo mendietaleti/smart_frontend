@@ -1,7 +1,9 @@
 // API para predicciones de ventas
 
+import API_BASE_URL from '../config/api.js'
+
 export async function generarPredicciones(params = {}) {
-  const res = await fetch('/api/dashboard/predicciones/generar/', {
+  const res = await fetch(`${API_BASE_URL}/dashboard/predicciones/generar/`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -29,7 +31,7 @@ export async function listarPredicciones(params = {}) {
   if (params.limite) queryParams.append('limite', params.limite);
   
   const query = queryParams.toString();
-  const url = `/api/dashboard/predicciones/${query ? '?' + query : ''}`;
+  const url = `${API_BASE_URL}/dashboard/predicciones/${query ? '?' + query : ''}`;
   
   const res = await fetch(url, {
     credentials: 'include'

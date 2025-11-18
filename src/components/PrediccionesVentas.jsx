@@ -10,6 +10,7 @@ import { generarPredicciones, listarPredicciones } from '../api/predicciones.js'
 import { obtenerEstadoModelo, entrenarModelo as apiEntrenarModelo } from '../api/modeloIA.js';
 import { obtenerHistorialAgregado } from '../api/historial.js';
 import { listCategorias } from '../api/products.js';
+import API_BASE_URL from '../config/api.js';
 import './PrediccionesVentas.css';
 
 export default function PrediccionesVentas() {
@@ -267,7 +268,7 @@ export default function PrediccionesVentas() {
         ? prediccionesRecientes.map(p => p.id).filter(Boolean).join(',')
         : null;
       
-      let url = `/api/dashboard/predicciones/exportar/?formato=${formato}`;
+      let url = `${API_BASE_URL}/dashboard/predicciones/exportar/?formato=${formato}`;
       if (idsPredicciones) {
         url += `&ids=${idsPredicciones}`;
       }

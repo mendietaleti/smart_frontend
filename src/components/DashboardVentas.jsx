@@ -3,6 +3,7 @@ import { obtenerEstadisticasDashboard } from '../api/dashboard.js';
 import { obtenerHistorialAgregado } from '../api/historial.js';
 import { obtenerEstadoModelo } from '../api/modeloIA.js';
 import { listarPredicciones } from '../api/predicciones.js';
+import API_BASE_URL from '../config/api.js';
 import { 
   DollarSign, TrendingUp, TrendingDown, BarChart3, 
   PieChart, LineChart, RefreshCw, Calendar,
@@ -133,7 +134,7 @@ export default function DashboardVentas({ onNavigateToSection }) {
   async function exportarReporte(formato) {
     try {
       const periodoNum = periodo === '3meses' ? '3' : periodo === '6meses' ? '6' : '12';
-      const url = `/api/dashboard/dashboard-ventas/exportar/?formato=${formato}&periodo=${periodoNum}`;
+      const url = `${API_BASE_URL}/dashboard/dashboard-ventas/exportar/?formato=${formato}&periodo=${periodoNum}`;
       
       const response = await fetch(url, {
         method: 'GET',

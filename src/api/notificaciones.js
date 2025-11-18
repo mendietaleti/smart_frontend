@@ -1,4 +1,6 @@
-const API_BASE = '/api';
+import API_BASE_URL from '../config/api.js'
+
+const API_BASE = API_BASE_URL;
 
 export async function obtenerNotificaciones(filtros = {}) {
   try {

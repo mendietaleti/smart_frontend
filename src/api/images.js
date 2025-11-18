@@ -1,10 +1,12 @@
 // API para subir imágenes a ImgBB
 
+import API_BASE_URL from '../config/api.js'
+
 export async function uploadImage(file) {
   const formData = new FormData()
   formData.append('image', file)
   
-  const res = await fetch('/api/productos/upload-image/', {
+  const res = await fetch(`${API_BASE_URL}/productos/upload-image/`, {
     method: 'POST',
     credentials: 'include',
     body: formData

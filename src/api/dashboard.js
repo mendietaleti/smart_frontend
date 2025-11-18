@@ -1,7 +1,9 @@
 // API para estadísticas del dashboard
 
+import API_BASE_URL from '../config/api.js'
+
 export async function obtenerEstadisticasDashboard() {
-  const res = await fetch('/api/ventas/dashboard/stats/', {
+  const res = await fetch(`${API_BASE_URL}/ventas/dashboard/stats/`, {
     method: 'GET',
     credentials: 'include',
     headers: {

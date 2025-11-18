@@ -7,10 +7,12 @@ import './StripePaymentForm.css'
 let stripeInstance = null
 let stripeLoading = false
 
+import API_BASE_URL from '../config/api.js'
+
 // Función para obtener la clave pública de Stripe desde el backend
 async function getStripePublishableKey() {
   try {
-    const res = await fetch('/api/ventas/stripe/publishable-key/', {
+    const res = await fetch(`${API_BASE_URL}/ventas/stripe/publishable-key/`, {
       credentials: 'include'
     })
     if (!res.ok) {

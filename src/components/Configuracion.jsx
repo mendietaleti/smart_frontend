@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { 
   Settings, Save, Info, Bell, Globe, 
   Mail, Phone, Building, 
-  CheckCircle, AlertCircle, RefreshCw
+  CheckCircle, AlertCircle, RefreshCw, Database
 } from 'lucide-react';
+import API_BASE_URL from '../config/api.js';
 import './Configuracion.css';
 
 export default function Configuracion({ user }) {
@@ -48,6 +49,7 @@ export default function Configuracion({ user }) {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState('');
   const [tipoMensaje, setTipoMensaje] = useState('');
+  const [generandoDatos, setGenerandoDatos] = useState(false);
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
@@ -77,6 +79,46 @@ export default function Configuracion({ user }) {
     }, 1000);
   }
 
+  async function generarDatosPrueba() {
+    setGenerandoDatos(true);
+    setMensaje('');
+    setTipoMensaje('');
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/ventas/admin/generar-datos-prueba/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ventas: 120,
+          productos: 25,
+          clientes: 12,
+          limpiar: false
+        })
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        const summary = data.summary || {};
+        const resumen = `✅ Datos generados exitosamente: ${summary.ventas || 0} ventas, ${summary.productos || 0} productos, ${summary.clientes || 0} clientes, ${summary.categorias || 0} categorías, ${summary.marcas || 0} marcas`;
+        setMensaje(resumen);
+        setTipoMensaje('success');
+      } else {
+        setMensaje(`❌ Error: ${data.message || 'No se pudieron generar los datos'}`);
+        setTipoMensaje('error');
+      }
+    } catch (error) {
+      setMensaje(`❌ Error de conexión: ${error.message}`);
+      setTipoMensaje('error');
+    } finally {
+      setGenerandoDatos(false);
+      setTimeout(() => setMensaje(''), 8000);
+    }
+  }
+
   return (
     <div className="configuracion-container">
       <div className="configuracion-header">
@@ -92,9 +134,9 @@ export default function Configuracion({ user }) {
       </div>
 
       {mensaje && (
-        <div className={`configuracion-mensaje ${tipoMensaje}`}>
+        <div className={`configuracion-mensaje ${tipoMensaje}`} style={{ whiteSpace: 'pre-line' }}>
           {tipoMensaje === 'success' ? <CheckCircle /> : <AlertCircle />}
-          {mensaje}
+          <span>{mensaje}</span>
         </div>
       )}
 
@@ -271,6 +313,73 @@ export default function Configuracion({ user }) {
                   <p>El modelo de predicciones se actualizará automáticamente cada 7 días</p>
                 </div>
               </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Generar Datos de Prueba */}
+        <div className="configuracion-seccion">
+          <div className="seccion-header">
+            <Database className="seccion-icon" />
+            <h2>Datos de Prueba</h2>
+          </div>
+          
+          <div className="seccion-content">
+            <div style={{ 
+              padding: '20px', 
+              backgroundColor: '#f0f9ff', 
+              borderRadius: '8px', 
+              border: '1px solid #bae6fd',
+              marginBottom: '15px'
+            }}>
+              <div style={{ marginBottom: '15px' }}>
+                <strong style={{ display: 'block', marginBottom: '8px', color: '#1e40af' }}>
+                  Generar Datos de Prueba
+                </strong>
+                <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.6' }}>
+                  Genera automáticamente categorías, productos, clientes y ventas históricas (últimos 2 meses) 
+                  para probar el sistema. Los datos incluyen:
+                </p>
+                <ul style={{ fontSize: '13px', color: '#64748b', margin: '10px 0 0 20px', padding: 0 }}>
+                  <li>9 categorías de electrodomésticos</li>
+                  <li>12 marcas reconocidas</li>
+                  <li>3 proveedores</li>
+                  <li>25 productos con stock</li>
+                  <li>12 clientes con credenciales (password: cliente123)</li>
+                  <li>120 ventas distribuidas en los últimos 2 meses</li>
+                </ul>
+              </div>
+              <button
+                onClick={generarDatosPrueba}
+                disabled={generandoDatos}
+                className="btn-guardar"
+                style={{ 
+                  width: '100%', 
+                  marginTop: '10px',
+                  backgroundColor: generandoDatos ? '#94a3b8' : '#3b82f6',
+                  cursor: generandoDatos ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {generandoDatos ? (
+                  <>
+                    <RefreshCw className="spinning" style={{ animation: 'spin 1s linear infinite' }} /> 
+                    Generando datos... (esto puede tardar unos minutos)
+                  </>
+                ) : (
+                  <>
+                    <Database /> Generar Datos de Prueba
+                  </>
+                )}
+              </button>
+              <p style={{ 
+                fontSize: '12px', 
+                color: '#64748b', 
+                marginTop: '10px', 
+                marginBottom: 0,
+                fontStyle: 'italic'
+              }}>
+                ⚠️ Nota: Este proceso puede tardar 1-2 minutos. No cierres esta página.
+              </p>
             </div>
           </div>
         </div>

@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { obtenerEstadisticasDashboard } from '../api/dashboard.js';
 import { obtenerHistorialAgregado } from '../api/historial.js';
+import { obtenerEstadoModelo } from '../api/modeloIA.js';
+import { listarPredicciones } from '../api/predicciones.js';
 import { 
   DollarSign, TrendingUp, TrendingDown, BarChart3, 
   PieChart, LineChart, RefreshCw, Calendar,
   ShoppingBag, Users, Package, Activity,
-  Download, FileText, FileSpreadsheet
+  Download, FileText, FileSpreadsheet, Brain, Sparkles
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import './DashboardVentas.css';
 
-export default function DashboardVentas() {
+export default function DashboardVentas({ onNavigateToSection }) {
   const [dashboardStats, setDashboardStats] = useState(null);
   const [historialAgregado, setHistorialAgregado] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [periodo, setPeriodo] = useState('12meses'); // 12meses, 6meses, 3meses
+  const [prediccionesInfo, setPrediccionesInfo] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     cargarDatos();
@@ -41,6 +46,33 @@ export default function DashboardVentas() {
         // El historial agregado es opcional, no es crítico si falla
         console.warn('Historial agregado no disponible:', err);
         setHistorialAgregado([]);
+      }
+      
+      // Cargar información de predicciones IA
+      try {
+        const estadoModelo = await obtenerEstadoModelo();
+        const predicciones = await listarPredicciones({ limite: 5 });
+        
+        if (estadoModelo && estadoModelo.success && predicciones && predicciones.success) {
+          const modelo = estadoModelo.modelo;
+          const prediccionesList = predicciones.predicciones || [];
+          
+          // Calcular total predicho
+          const totalPredicho = prediccionesList.reduce((sum, p) => sum + (p.valor_predicho || 0), 0);
+          const confianzaPromedio = prediccionesList.length > 0
+            ? prediccionesList.reduce((sum, p) => sum + (p.confianza || 0), 0) / prediccionesList.length
+            : 0;
+          
+          setPrediccionesInfo({
+            modeloActivo: modelo?.estado === 'activo',
+            totalPredicciones: prediccionesList.length,
+            totalPredicho: totalPredicho,
+            confianzaPromedio: confianzaPromedio,
+            ultimaPrediccion: prediccionesList[0]?.fecha_ejecucion || prediccionesList[0]?.fecha_prediccion
+          });
+        }
+      } catch (err) {
+        console.warn('Información de predicciones no disponible:', err);
       }
     } catch (err) {
       console.error('Error cargando datos del dashboard:', err);
@@ -259,6 +291,56 @@ export default function DashboardVentas() {
                 <TrendingUp /> {dashboardStats.stats.nuevos_clientes?.change >= 0 ? '+' : ''}
                 {dashboardStats.stats.nuevos_clientes?.change.toFixed(1)}%
               </div>
+            </div>
+          </div>
+
+          {/* Cuadro de Predicciones IA */}
+          <div 
+            className="metric-card metric-card-predictions" 
+            onClick={() => {
+              // Si hay una función de navegación pasada como prop, usarla
+              if (onNavigateToSection && typeof onNavigateToSection === 'function') {
+                onNavigateToSection('predicciones');
+              } else if (typeof navigate === 'function') {
+                navigate('/admin/predicciones');
+              } else {
+                // Fallback: usar evento personalizado
+                const event = new CustomEvent('navigateToSection', { detail: { section: 'predicciones' } });
+                window.dispatchEvent(event);
+              }
+            }}
+            style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div className="metric-icon metric-icon-predictions" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+              <Brain />
+            </div>
+            <div className="metric-content">
+              <p className="metric-label">Predicciones IA</p>
+              {prediccionesInfo?.modeloActivo ? (
+                <>
+                  <p className="metric-value">
+                    Bs. {prediccionesInfo.totalPredicho.toLocaleString('es-BO', { 
+                      minimumFractionDigits: 2, 
+                      maximumFractionDigits: 2 
+                    })}
+                  </p>
+                  <div className="metric-change" style={{ color: '#667eea' }}>
+                    <Sparkles size={14} /> {prediccionesInfo.totalPredicciones} predicciones
+                    <span style={{ marginLeft: '8px', fontSize: '12px' }}>
+                      {(prediccionesInfo.confianzaPromedio * 100).toFixed(0)}% confianza
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="metric-value" style={{ fontSize: '18px' }}>Modelo Inactivo</p>
+                  <div className="metric-change" style={{ color: '#f59e0b' }}>
+                    <Brain size={14} /> Entrenar modelo
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

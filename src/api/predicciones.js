@@ -10,7 +10,7 @@ export async function generarPredicciones(params = {}) {
     body: JSON.stringify({
       periodo: params.periodo || 'mes',
       meses_futuros: params.meses_futuros || 3,
-      categoria_id: params.categoria_id || null,
+      categoria_id: params.categoria_id !== null && params.categoria_id !== undefined ? params.categoria_id : null,
       guardar: params.guardar !== false
     })
   });

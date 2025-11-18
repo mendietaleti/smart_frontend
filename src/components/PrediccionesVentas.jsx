@@ -7,8 +7,9 @@ import {
   FileText, FileSpreadsheet
 } from 'lucide-react';
 import { generarPredicciones, listarPredicciones } from '../api/predicciones.js';
-import { obtenerEstadoModelo } from '../api/modeloIA.js';
+import { obtenerEstadoModelo, entrenarModelo as apiEntrenarModelo } from '../api/modeloIA.js';
 import { obtenerHistorialAgregado } from '../api/historial.js';
+import { listCategorias } from '../api/products.js';
 import './PrediccionesVentas.css';
 
 export default function PrediccionesVentas() {
@@ -18,11 +19,16 @@ export default function PrediccionesVentas() {
   const [estadoModelo, setEstadoModelo] = useState(null);
   const [historialAgregado, setHistorialAgregado] = useState([]);
   const [generando, setGenerando] = useState(false);
+  const [entrenando, setEntrenando] = useState(false);
   
   // Parámetros de generación
   const [periodo, setPeriodo] = useState('mes');
   const [mesesFuturos, setMesesFuturos] = useState(3);
-  const [categoriaId, setCategoriaId] = useState(null);
+  const [categoriaId, setCategoriaId] = useState('');
+  const [categorias, setCategorias] = useState([]);
+  
+  // Predicciones recientes generadas (para reportes específicos)
+  const [prediccionesRecientes, setPrediccionesRecientes] = useState([]);
   
   // Resumen de predicciones
   const [resumen, setResumen] = useState(null);
@@ -32,14 +38,54 @@ export default function PrediccionesVentas() {
     cargarEstadoModelo();
     cargarHistorialAgregado();
     cargarPrediccionesExistentes();
+    cargarCategorias();
   }, []);
+
+  // Polling separado para actualizar estado si está entrenando
+  useEffect(() => {
+    const enCurso = estadoModelo?.entrenamiento_activo?.en_curso || entrenando;
+    
+    if (!enCurso) {
+      return;
+    }
+    
+    const interval = setInterval(() => {
+      cargarEstadoModelo();
+    }, 3000);
+    
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estadoModelo?.entrenamiento_activo?.en_curso, entrenando]);
 
   async function cargarEstadoModelo() {
     try {
       const data = await obtenerEstadoModelo();
       setEstadoModelo(data);
+      
+      // Si el modelo terminó de entrenar, actualizar estado
+      if (entrenando && data?.modelo?.estado === 'activo') {
+        setEntrenando(false);
+      }
     } catch (err) {
       console.error('Error cargando estado del modelo:', err);
+    }
+  }
+
+  async function entrenarModelo() {
+    try {
+      setEntrenando(true);
+      setError('');
+      
+      await apiEntrenarModelo();
+      
+      // Iniciar polling para ver el progreso
+      setTimeout(() => {
+        cargarEstadoModelo();
+      }, 2000);
+    } catch (err) {
+      console.error('Error entrenando modelo:', err);
+      setError(err.message || 'Error al entrenar el modelo');
+      setEntrenando(false);
     }
   }
 
@@ -61,11 +107,36 @@ export default function PrediccionesVentas() {
     }
   }
 
+  async function cargarCategorias() {
+    try {
+      const data = await listCategorias();
+      if (data && data.success) {
+        setCategorias(data.categorias || []);
+      }
+    } catch (err) {
+      console.warn('Error cargando categorías:', err);
+      setCategorias([]);
+    }
+  }
+
   async function cargarPrediccionesExistentes() {
     try {
-      const data = await listarPredicciones({ limite: 50 });
+      const data = await listarPredicciones({ limite: 100 });
       if (data && data.success) {
-        setPredicciones(data.predicciones || []);
+        // Si hay predicciones recientes, combinarlas con las existentes
+        setPrediccionesRecientes(currentRecent => {
+          if (currentRecent.length > 0) {
+            // Combinar predicciones recientes con las existentes, evitando duplicados
+            const recentIds = new Set(currentRecent.map(p => p.id).filter(Boolean));
+            const otrasPredicciones = (data.predicciones || []).filter(p => !recentIds.has(p.id));
+            const todas = [...currentRecent, ...otrasPredicciones];
+            setPredicciones(todas);
+            return currentRecent; // Mantener las recientes
+          } else {
+            setPredicciones(data.predicciones || []);
+            return [];
+          }
+        });
       }
     } catch (err) {
       console.warn('Error cargando predicciones existentes:', err);
@@ -77,20 +148,32 @@ export default function PrediccionesVentas() {
       setGenerando(true);
       setError('');
       
+      // Asegurar que categoriaId se envíe correctamente
+      const categoriaIdToSend = categoriaId && categoriaId !== '' && categoriaId !== '0' ? parseInt(categoriaId) : null;
+      
       const data = await generarPredicciones({
         periodo,
         meses_futuros: mesesFuturos,
-        categoria_id: categoriaId,
+        categoria_id: categoriaIdToSend,
         guardar: true
       });
       
       if (data && data.success) {
-        setPredicciones(data.predicciones || []);
+        const nuevasPredicciones = data.predicciones || [];
+        
+        // Guardar las predicciones recientes generadas (para reportes específicos)
+        setPrediccionesRecientes(nuevasPredicciones);
+        
+        // Mostrar inmediatamente las nuevas predicciones generadas
+        setPredicciones(nuevasPredicciones);
+        
         setResumen(data.resumen || null);
         setTendencias(data.tendencias || null);
         
-        // Recargar predicciones existentes
-        await cargarPrediccionesExistentes();
+        // Recargar todas las predicciones en segundo plano para tener el historial completo
+        setTimeout(() => {
+          cargarPrediccionesExistentes();
+        }, 1000);
       }
     } catch (err) {
       console.error('Error generando predicciones:', err);
@@ -108,14 +191,27 @@ export default function PrediccionesVentas() {
     }).format(valor);
   }
 
-  function formatearFecha(fechaISO) {
+  function formatearFecha(fechaISO, incluirHora = false) {
     if (!fechaISO) return 'N/A';
-    const fecha = new Date(fechaISO);
-    return fecha.toLocaleDateString('es-BO', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    try {
+      const fecha = new Date(fechaISO);
+      if (incluirHora) {
+        return fecha.toLocaleString('es-BO', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+      return fecha.toLocaleDateString('es-BO', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return fechaISO;
+    }
   }
 
   function formatearMes(fechaISO) {
@@ -155,9 +251,26 @@ export default function PrediccionesVentas() {
     return todos;
   }, [historialAgregado, predicciones]);
 
-  async function exportarReporte(formato) {
+  async function exportarReporte(formato, soloRecientes = false) {
     try {
-      const url = `/api/dashboard/predicciones/exportar/?formato=${formato}`;
+      const prediccionesAExportar = soloRecientes ? prediccionesRecientes : predicciones;
+      
+      if (prediccionesAExportar.length === 0) {
+        alert('No hay predicciones para exportar. Por favor, genera predicciones primero.');
+        return;
+      }
+
+      setLoading(true);
+      
+      // Si hay predicciones recientes, exportar solo esas; si no, exportar todas
+      const idsPredicciones = soloRecientes && prediccionesRecientes.length > 0 
+        ? prediccionesRecientes.map(p => p.id).filter(Boolean).join(',')
+        : null;
+      
+      let url = `/api/dashboard/predicciones/exportar/?formato=${formato}`;
+      if (idsPredicciones) {
+        url += `&ids=${idsPredicciones}`;
+      }
       
       const response = await fetch(url, {
         method: 'GET',
@@ -165,21 +278,26 @@ export default function PrediccionesVentas() {
       });
       
       if (!response.ok) {
-        throw new Error('Error al generar el reporte');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Error al generar el reporte');
       }
       
       const blob = await response.blob();
       const url_blob = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url_blob;
-      a.download = `predicciones_ia_${new Date().toISOString().slice(0, 10)}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`;
+      const fechaStr = new Date().toISOString().slice(0, 10);
+      const categoriaStr = categoriaId ? `_cat_${categoriaId}` : '';
+      a.download = `predicciones_ia${categoriaStr}_${fechaStr}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url_blob);
       document.body.removeChild(a);
     } catch (err) {
       console.error('Error exportando reporte:', err);
-      alert('Error al exportar el reporte. Por favor, intenta nuevamente.');
+      alert(`Error al exportar el reporte: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -209,19 +327,37 @@ export default function PrediccionesVentas() {
           </button>
           {predicciones.length > 0 && (
             <div className="predicciones-export">
+              {prediccionesRecientes.length > 0 && (
+                <>
+                  <button 
+                    onClick={() => exportarReporte('pdf', true)}
+                    className="btn-export btn-export-pdf"
+                    title="Exportar predicciones recientes a PDF"
+                  >
+                    <FileText size={18} /> PDF (Recientes)
+                  </button>
+                  <button 
+                    onClick={() => exportarReporte('excel', true)}
+                    className="btn-export btn-export-excel"
+                    title="Exportar predicciones recientes a Excel"
+                  >
+                    <FileSpreadsheet size={18} /> Excel (Recientes)
+                  </button>
+                </>
+              )}
               <button 
-                onClick={() => exportarReporte('pdf')}
+                onClick={() => exportarReporte('pdf', false)}
                 className="btn-export btn-export-pdf"
-                title="Exportar a PDF"
+                title="Exportar todas las predicciones a PDF"
               >
-                <FileText size={18} /> PDF
+                <FileText size={18} /> PDF (Todas)
               </button>
               <button 
-                onClick={() => exportarReporte('excel')}
+                onClick={() => exportarReporte('excel', false)}
                 className="btn-export btn-export-excel"
-                title="Exportar a Excel"
+                title="Exportar todas las predicciones a Excel"
               >
-                <FileSpreadsheet size={18} /> Excel
+                <FileSpreadsheet size={18} /> Excel (Todas)
               </button>
             </div>
           )}
@@ -269,12 +405,45 @@ export default function PrediccionesVentas() {
       {!modeloActivo && (
         <div className="predicciones-alerta">
           <AlertCircle className="alerta-icon" />
-          <div>
+          <div style={{ flex: 1 }}>
             <p className="alerta-titulo">Modelo no disponible</p>
             <p className="alerta-texto">
-              El modelo de predicción no está activo. Debes entrenar el modelo primero en la sección "Gestión de Modelo IA" 
-              para poder generar predicciones de ventas.
+              {estadoModelo?.datos_disponibles?.suficientes_datos 
+                ? 'El modelo de predicción no está activo. Entrena el modelo ahora para poder generar predicciones de ventas.'
+                : `Datos insuficientes. Se requieren al menos 5 ventas para entrenar el modelo. Actualmente hay ${estadoModelo?.datos_disponibles?.ventas_totales || 0} ventas.`}
             </p>
+            {estadoModelo?.datos_disponibles?.suficientes_datos && (
+              <button
+                onClick={entrenarModelo}
+                disabled={entrenando}
+                className="btn-entrenar-modelo"
+                style={{
+                  marginTop: '12px',
+                  padding: '10px 20px',
+                  background: entrenando ? '#9CA3AF' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  cursor: entrenando ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                {entrenando ? (
+                  <>
+                    <RefreshCw className="spinning" size={18} />
+                    Entrenando modelo...
+                  </>
+                ) : (
+                  <>
+                    <Zap size={18} />
+                    Entrenar Modelo Ahora
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -286,76 +455,21 @@ export default function PrediccionesVentas() {
         </div>
       )}
 
-      {/* Información sobre cómo funciona */}
+      {/* Información breve sobre cómo funciona */}
       {modeloActivo && (
-        <div className="predicciones-info-card">
-          <div className="info-card-header">
-            <Info className="info-card-icon" />
-            <h3>¿Cómo funciona el sistema de predicciones?</h3>
+        <div className="predicciones-info-card" style={{ padding: '20px', marginBottom: '24px' }}>
+          <div className="info-card-header" style={{ marginBottom: '12px' }}>
+            <Info className="info-card-icon" size={20} />
+            <h3 style={{ fontSize: '16px', margin: 0 }}>¿Cómo funciona?</h3>
           </div>
-          <div className="info-card-content">
-            <div className="info-paso">
-              <div className="paso-numero">1</div>
-              <div className="paso-contenido">
-                <h4>Análisis de Datos Históricos</h4>
-                <p>El sistema analiza tus ventas de los últimos 3 meses para identificar patrones y tendencias.</p>
-              </div>
-            </div>
-            <div className="info-paso">
-              <div className="paso-numero">2</div>
-              <div className="paso-contenido">
-                <h4>Cálculo de Tendencias</h4>
-                <p>Compara los últimos 30 días con los 30 días anteriores para calcular el factor de crecimiento.</p>
-              </div>
-            </div>
-            <div className="info-paso">
-              <div className="paso-numero">3</div>
-              <div className="paso-contenido">
-                <h4>Generación de Predicciones</h4>
-                <p>Usa el modelo de IA entrenado para proyectar ventas futuras con un nivel de confianza basado en la calidad del modelo.</p>
-              </div>
-            </div>
-            <div className="info-paso">
-              <div className="paso-numero">4</div>
-              <div className="paso-contenido">
-                <h4>Visualización</h4>
-                <p>Las predicciones se muestran en gráficos comparativos con los datos históricos para una mejor comprensión.</p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Ejemplos de uso */}
-          <div className="ejemplos-uso">
-            <h4 className="ejemplos-uso-titulo">Ejemplos de cómo pedir predicciones:</h4>
-            <div className="ejemplos-lista">
-              <div className="ejemplo-item">
-                <div className="ejemplo-icono">
-                  <Target size={20} />
-                </div>
-                <div className="ejemplo-descripcion">
-                  <strong>Predicción mensual:</strong> Selecciona "Mensual" y el número de meses (ej: 3 meses). 
-                  El sistema proyectará las ventas para cada mes futuro.
-                </div>
-              </div>
-              <div className="ejemplo-item">
-                <div className="ejemplo-icono">
-                  <BarChart3 size={20} />
-                </div>
-                <div className="ejemplo-descripcion">
-                  <strong>Predicción por categoría:</strong> Ingresa el ID de una categoría específica para 
-                  obtener predicciones solo de esa categoría de productos.
-                </div>
-              </div>
-              <div className="ejemplo-item">
-                <div className="ejemplo-icono">
-                  <TrendingUp size={20} />
-                </div>
-                <div className="ejemplo-descripcion">
-                  <strong>Análisis de tendencias:</strong> El sistema muestra automáticamente el factor de crecimiento 
-                  calculado y la confianza de cada predicción.
-                </div>
-              </div>
-            </div>
+          <div style={{ fontSize: '13px', color: '#4B5563', lineHeight: '1.6' }}>
+            <p style={{ margin: '0 0 8px 0' }}>
+              El sistema analiza tus ventas históricas de los últimos 3 meses, calcula tendencias comparando períodos recientes, 
+              y usa el modelo de IA entrenado para proyectar ventas futuras con niveles de confianza.
+            </p>
+            <p style={{ margin: 0, fontSize: '12px', color: '#6B7280' }}>
+              <strong>Tip:</strong> Selecciona un período (mensual/semanal/diario) y opcionalmente una categoría para predicciones específicas.
+            </p>
           </div>
         </div>
       )}
@@ -453,13 +567,18 @@ export default function PrediccionesVentas() {
                   <Filter className="label-icon" />
                   Categoría (Opcional)
                 </label>
-                <input
-                  type="number"
-                  placeholder="ID de categoría (dejar vacío para todas)"
+                <select
                   value={categoriaId || ''}
-                  onChange={(e) => setCategoriaId(e.target.value ? parseInt(e.target.value) : null)}
-                  className="parametro-input"
-                />
+                  onChange={(e) => setCategoriaId(e.target.value || '')}
+                  className="parametro-select"
+                >
+                  <option key="todas" value="">Todas las categorías</option>
+                  {categorias.map(cat => (
+                    <option key={`cat-${cat.id_categoria}`} value={cat.id_categoria}>
+                      {cat.nombre}
+                    </option>
+                  ))}
+                </select>
                 <p className="parametro-hint">Filtrar predicciones por categoría específica</p>
               </div>
             </div>
@@ -612,7 +731,7 @@ export default function PrediccionesVentas() {
               {predicciones.map((pred, index) => (
                 <div key={pred.id || index} className="tabla-fila">
                   <div className="tabla-col-fecha">
-                    {formatearFecha(pred.fecha_prediccion)}
+                    {formatearFecha(pred.fecha_ejecucion || pred.fecha_prediccion, true)}
                   </div>
                   <div className="tabla-col-valor">
                     {formatearMoneda(pred.valor_predicho || 0)}

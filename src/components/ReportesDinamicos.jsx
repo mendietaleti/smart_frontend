@@ -398,7 +398,9 @@ export default function ReportesDinamicos({ user }) {
           'productos_count', // No necesario
           'total_productos_cantidad', // No necesario
           'veces_comprado', // No necesario en tabla principal
-          'metodo_pago_key', // Clave técnica, no mostrar (solo metodo_pago)
+          'metodo_pago_key', // Clave técnica, no mostrar
+          'metodo_pago', // No necesario - todas las compras son Stripe
+          'metodo_pago_display', // No necesario - todas las compras son Stripe
         ]
         
         // Si es reporte de clientes, excluir campos adicionales y solo mostrar básicos
@@ -416,10 +418,9 @@ export default function ReportesDinamicos({ user }) {
           return columnasClientes.filter(col => item.hasOwnProperty(col))
         }
         
-        // Si es reporte financiero, mostrar columnas específicas
+        // Si es reporte financiero, mostrar columnas específicas (sin método de pago - todas son Stripe)
         if (esReporteFinanciero) {
           const columnasFinanciero = [
-            'metodo_pago',
             'cantidad_ventas',
             'total_formateado',
             'total',
@@ -456,6 +457,7 @@ export default function ReportesDinamicos({ user }) {
         }
         
         // Columnas prioritarias a mostrar - NOMBRE SIEMPRE PRIMERO para productos
+        // NOTA: Preferir siempre versiones _display o _formateado sobre originales
         const prioridades = [
           'nombre', // SIEMPRE PRIMERO - Nombre del producto o cliente
           'precio', // Precio del producto
@@ -465,10 +467,7 @@ export default function ReportesDinamicos({ user }) {
           'fecha', // Fecha de compra
           'stock', // Stock disponible
           'marca', // Marca del producto
-          'estado', // Estado de la compra (pendiente, completada, etc.)
-          'estado_display', // Estado formateado
-          'metodo_pago', // Método de pago
-          'metodo_pago_display', // Método de pago formateado
+          'estado_display', // Estado formateado (preferir sobre 'estado')
           'cliente_nombre', // Nombre del cliente (solo si es reporte de ventas)
         ]
         
@@ -480,19 +479,50 @@ export default function ReportesDinamicos({ user }) {
         const todasLasKeys = Object.keys(item)
         const columnasVisibles = []
         
+        // Función auxiliar para verificar si una columna es duplicado
+        const esDuplicado = (key, columnasExistentes) => {
+          // Si ya existe la versión formateada/display, no mostrar la original
+          if (columnasExistentes.includes(key + '_display') || columnasExistentes.includes(key + '_formateado')) {
+            return true
+          }
+          // Si la key es una versión sin sufijo y ya existe con sufijo, no mostrar
+          const baseKey = key.replace(/_display$|_formateado$|_iso$|_numero$/, '')
+          if (baseKey !== key && columnasExistentes.includes(baseKey)) {
+            return true
+          }
+          // Si ya existe una versión con sufijo de esta key, no mostrar la original
+          return columnasExistentes.some(c => 
+            (c === key + '_display') || (key === c + '_display') ||
+            (c === key + '_formateado') || (key === c + '_formateado') ||
+            (c === key + '_iso') || (key === c + '_iso') ||
+            (c === key + '_numero') || (key === c + '_numero')
+          )
+        }
+        
         // SIEMPRE incluir 'nombre' si existe, como primera columna
         if (todasLasKeys.includes('nombre') && !excluir.includes('nombre')) {
           columnasVisibles.push('nombre')
         }
         
-        // Luego agregar otras prioridades
+        // Luego agregar otras prioridades (preferir versiones formateadas)
         for (const key of prioridades) {
           if (key !== 'nombre' && todasLasKeys.includes(key) && !excluir.includes(key) && !columnasVisibles.includes(key)) {
-            const valor = item[key]
-            // Solo incluir si no es objeto/array complejo
-            if (!Array.isArray(valor) && (typeof valor !== 'object' || valor === null)) {
-              columnasVisibles.push(key)
+            // Verificar duplicados antes de agregar
+            if (!esDuplicado(key, columnasVisibles)) {
+              const valor = item[key]
+              // Solo incluir si no es objeto/array complejo
+              if (!Array.isArray(valor) && (typeof valor !== 'object' || valor === null)) {
+                columnasVisibles.push(key)
+              }
             }
+          }
+        }
+        
+        // Si se agregó estado_display, excluir estado explícitamente
+        if (columnasVisibles.includes('estado_display')) {
+          const indexEstado = columnasVisibles.indexOf('estado')
+          if (indexEstado !== -1) {
+            columnasVisibles.splice(indexEstado, 1)
           }
         }
         
@@ -502,17 +532,34 @@ export default function ReportesDinamicos({ user }) {
             const valor = item[key]
             // Solo valores simples
             if (!Array.isArray(valor) && (typeof valor !== 'object' || valor === null)) {
-              // Evitar duplicados (si ya tenemos _display o _formateado, no mostrar el original)
-              const esDuplicado = columnasVisibles.some(c => 
-                (c === key + '_display') || (key === c + '_display') ||
-                (c === key + '_formateado') || (key === c + '_formateado') ||
-                (c === key + '_iso') || (key === c + '_iso') ||
-                (c === key + '_numero') || (key === c + '_numero')
-              )
-              if (!esDuplicado) {
+              // Evitar duplicados usando la función auxiliar
+              if (!esDuplicado(key, columnasVisibles)) {
                 columnasVisibles.push(key)
               }
             }
+          }
+        }
+        
+        // Limpieza final: eliminar duplicados explícitos
+        // Si hay estado_display, eliminar estado
+        if (columnasVisibles.includes('estado_display')) {
+          const indexEstado = columnasVisibles.indexOf('estado')
+          if (indexEstado !== -1) {
+            columnasVisibles.splice(indexEstado, 1)
+          }
+        }
+        // Si hay total_formateado, eliminar total
+        if (columnasVisibles.includes('total_formateado')) {
+          const indexTotal = columnasVisibles.indexOf('total')
+          if (indexTotal !== -1) {
+            columnasVisibles.splice(indexTotal, 1)
+          }
+        }
+        // Si hay fecha formateada, eliminar fecha_iso
+        if (columnasVisibles.includes('fecha') && columnasVisibles.includes('fecha_iso')) {
+          const indexFechaIso = columnasVisibles.indexOf('fecha_iso')
+          if (indexFechaIso !== -1) {
+            columnasVisibles.splice(indexFechaIso, 1)
           }
         }
         
@@ -598,7 +645,6 @@ export default function ReportesDinamicos({ user }) {
                       'fecha': 'Fecha',
                       'total': 'Total',
                       'estado': 'Estado',
-                      'metodo_pago': 'Método de Pago',
                       'cliente_nombre': 'Cliente',
                       'cantidad_ventas': 'Cantidad de Ventas',
                       'total_formateado': 'Total',

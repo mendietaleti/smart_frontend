@@ -11,7 +11,8 @@ export default function Register({ onSuccess, onCancel }) {
     confirmarContrasena: '',
     telefono: '',
     direccion: '',
-    ciudad: ''
+    ciudad: '',
+    tipoCuenta: 'Cliente'
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -58,7 +59,8 @@ export default function Register({ onSuccess, onCancel }) {
         contrasena: form.contrasena,
         telefono: form.telefono.trim(),
         direccion: form.direccion.trim(),
-        ciudad: form.ciudad.trim()
+        ciudad: form.ciudad.trim(),
+        tipoCuenta: form.tipoCuenta
       }
 
       const result = await register(userData)
@@ -93,11 +95,25 @@ export default function Register({ onSuccess, onCancel }) {
         </button>
       </div>
       <div className="form-header">
-        <h2>📝 Crear Cuenta de Cliente</h2>
-        <p>Regístrate para realizar compras y gestionar tu perfil</p>
+        <h2>📝 Crear Cuenta</h2>
+        <p>Regístrate para acceder al sistema</p>
       </div>
 
       <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>
+            Tipo de Cuenta *
+            <select
+              value={form.tipoCuenta}
+              onChange={(e) => setForm({ ...form, tipoCuenta: e.target.value })}
+              className="form-select"
+              required
+            >
+              <option value="Cliente">Cliente</option>
+              <option value="Administrador">Administrador</option>
+            </select>
+          </label>
+        </div>
         <div className="form-row">
           <div className="form-group">
             <label>

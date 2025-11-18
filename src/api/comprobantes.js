@@ -21,8 +21,34 @@ export async function obtenerComprobante(ventaId) {
   return data.comprobante
 }
 
-export function descargarComprobantePDF(ventaId) {
-  window.open(`/api/ventas/comprobantes/${ventaId}/pdf/`, '_blank')
+export async function descargarComprobantePDF(ventaId) {
+  try {
+    const res = await fetch(`/api/ventas/comprobantes/${ventaId}/pdf/`, {
+      method: 'GET',
+      credentials: 'include'
+    })
+    
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.message || `Error al descargar PDF (${res.status})`)
+    }
+    
+    // Obtener el blob del PDF
+    const blob = await res.blob()
+    
+    // Crear URL temporal y descargar
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `factura_${ventaId}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Error al descargar PDF:', error)
+    alert(`Error al descargar el PDF: ${error.message}`)
+  }
 }
 
 

@@ -1,6 +1,6 @@
 .predicciones-container {
   padding: 24px;
-  max-width: 1600px;
+  max-width: 100%;
   margin: 0 auto;
   background: #F8FAFC;
   min-height: 100vh;
@@ -812,10 +812,10 @@
 /* Información sobre funcionamiento */
 .predicciones-info-card {
   background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-  border-radius: 16px;
-  padding: 32px;
+  border-radius: 12px;
+  padding: 20px;
   margin-bottom: 24px;
-  border: 2px solid #BAE6FD;
+  border: 1px solid #BAE6FD;
 }
 
 .info-card-header {

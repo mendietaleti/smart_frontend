@@ -1762,14 +1762,14 @@ export default function AdminDashboard({ user, onLogout }) {
       case 'analytics':
         return (
           <main className="admin-main" style={{ padding: '0' }}>
-            <DashboardVentas />
+            <DashboardVentas onNavigateToSection={setActiveSection} />
           </main>
         );
       case 'predicciones':
         return (
-          <main className="admin-main" style={{ padding: '0' }}>
+          <div style={{ width: '100%', height: '100%', overflow: 'auto' }}>
             <PrediccionesVentas />
-          </main>
+          </div>
         );
       case 'categorias':
         return renderCategorias();

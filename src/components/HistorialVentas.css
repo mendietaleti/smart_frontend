@@ -433,6 +433,64 @@
   color: #666;
 }
 
+.metodo-pago-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.metodo-pago-stripe {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #635BFF;
+  background: #F0F0FF;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #E0E0FF;
+}
+
+.acciones-factura {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-descargar-factura,
+.btn-descargar-factura-excel {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-descargar-factura:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.btn-descargar-factura-excel {
+  background: #3b82f6;
+}
+
+.btn-descargar-factura-excel:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
 .productos-count {
   font-size: 13px;
   color: #666;

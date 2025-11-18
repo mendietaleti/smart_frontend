@@ -3,6 +3,37 @@ import { obtenerHistorialVentas, obtenerOpcionesFiltros } from '../api/historial
 import { descargarComprobantePDF } from '../api/comprobantes.js'
 import './HistorialVentas.css'
 
+// Función para descargar comprobante en Excel
+async function descargarComprobanteExcel(ventaId) {
+  try {
+    const res = await fetch(`/api/ventas/comprobantes/${ventaId}/excel/`, {
+      method: 'GET',
+      credentials: 'include'
+    })
+    
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.message || `Error al descargar Excel (${res.status})`)
+    }
+    
+    // Obtener el blob del Excel
+    const blob = await res.blob()
+    
+    // Crear URL temporal y descargar
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `factura_${ventaId}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Error al descargar Excel:', error)
+    alert(`Error al descargar el Excel: ${error.message}`)
+  }
+}
+
 export default function HistorialVentas() {
   const [ventas, setVentas] = useState([])
   const [loading, setLoading] = useState(true)
@@ -54,9 +85,10 @@ export default function HistorialVentas() {
       })
     } catch (err) {
       console.error('Error al cargar opciones de filtros:', err)
-      // Si es error de conexión, mostrar mensaje más claro
-      if (err.message && err.message.includes('Failed to fetch')) {
-        setError('No se pudo conectar con el servidor. Por favor, verifica que el servidor backend esté corriendo.')
+      // Si es error de conexión, no mostrar error aquí (se mostrará en cargarHistorial)
+      // Solo loguear el error
+      if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('ECONNREFUSED'))) {
+        // El error se mostrará cuando se intente cargar el historial
       }
     }
   }
@@ -71,8 +103,8 @@ export default function HistorialVentas() {
       setEstadisticas(data.estadisticas)
     } catch (err) {
       // Si es error de conexión, mostrar mensaje más claro
-      if (err.message && err.message.includes('Failed to fetch')) {
-        setError('No se pudo conectar con el servidor. Por favor, verifica que el servidor backend esté corriendo en el puerto 8000.')
+      if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('ECONNREFUSED') || err.message.includes('NetworkError'))) {
+        setError('⚠️ No se pudo conectar con el servidor. Por favor, verifica que el servidor backend esté corriendo en el puerto 8000.')
       } else {
         setError(err.message || 'Error al cargar historial')
       }
@@ -362,9 +394,39 @@ export default function HistorialVentas() {
                         </span>
                       </td>
                       <td>
-                        <span className="metodo-pago">
-                          {getMetodoPagoLabel(venta.metodo_pago)}
-                        </span>
+                        <div className="metodo-pago-container">
+                          {venta.metodo_pago === 'stripe' || venta.metodo_pago?.toLowerCase().includes('stripe') || venta.metodo_pago?.toLowerCase().includes('tarjeta') ? (
+                            <span className="metodo-pago-stripe" title="Pago con Tarjeta (Stripe)">
+                              💳 Stripe
+                            </span>
+                          ) : (
+                            <span className="metodo-pago">
+                              {getMetodoPagoLabel(venta.metodo_pago)}
+                            </span>
+                          )}
+                          <div className="acciones-factura">
+                            <button
+                              className="btn-descargar-factura"
+                              onClick={async (e) => {
+                                e.stopPropagation()
+                                await descargarComprobantePDF(venta.id)
+                              }}
+                              title="Descargar Factura PDF"
+                            >
+                              📄 PDF
+                            </button>
+                            <button
+                              className="btn-descargar-factura-excel"
+                              onClick={async (e) => {
+                                e.stopPropagation()
+                                await descargarComprobanteExcel(venta.id)
+                              }}
+                              title="Descargar Factura Excel"
+                            >
+                              📊 Excel
+                            </button>
+                          </div>
+                        </div>
                       </td>
                       <td>
                         <span className="productos-count">
@@ -373,15 +435,6 @@ export default function HistorialVentas() {
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="acciones-buttons">
-                          {venta.comprobante?.existe && (
-                            <button
-                              className="btn-descargar"
-                              onClick={() => descargarComprobantePDF(venta.id)}
-                              title="Descargar Comprobante"
-                            >
-                              📄
-                            </button>
-                          )}
                           {venta.pago_online?.existe && (
                             <span className="pago-badge" title={`Pago: ${venta.pago_online.estado}`}>
                               💳
@@ -432,7 +485,7 @@ export default function HistorialVentas() {
                                 </p>
                                 <button
                                   className="btn-descargar-comprobante"
-                                  onClick={() => descargarComprobantePDF(venta.id)}
+                                  onClick={async () => await descargarComprobantePDF(venta.id)}
                                 >
                                   📥 Descargar PDF
                                 </button>

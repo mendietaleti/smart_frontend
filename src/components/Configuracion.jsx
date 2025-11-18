@@ -7,6 +7,8 @@ import {
 import API_BASE_URL from '../config/api.js';
 import './Configuracion.css';
 
+const DATA_GENERATION_TOKEN = import.meta.env.VITE_DATA_GENERATION_TOKEN || '';
+
 export default function Configuracion({ user }) {
   // Cargar configuración desde localStorage si existe
   const getInitialConfig = () => {
@@ -85,12 +87,15 @@ export default function Configuracion({ user }) {
     setTipoMensaje('');
     
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (DATA_GENERATION_TOKEN) {
+        headers['X-Data-Token'] = DATA_GENERATION_TOKEN;
+      }
+
       const res = await fetch(`${API_BASE_URL}/ventas/admin/generar-datos-prueba/`, {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({
           ventas: 120,
           productos: 25,
@@ -106,6 +111,9 @@ export default function Configuracion({ user }) {
         const resumen = `✅ Datos generados exitosamente: ${summary.ventas || 0} ventas, ${summary.productos || 0} productos, ${summary.clientes || 0} clientes, ${summary.categorias || 0} categorías, ${summary.marcas || 0} marcas`;
         setMensaje(resumen);
         setTipoMensaje('success');
+      } else if (res.status === 401) {
+        setMensaje('⚠️ Debes iniciar sesión nuevamente o configurar VITE_DATA_GENERATION_TOKEN.');
+        setTipoMensaje('error');
       } else {
         setMensaje(`❌ Error: ${data.message || 'No se pudieron generar los datos'}`);
         setTipoMensaje('error');
